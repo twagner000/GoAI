@@ -2,71 +2,58 @@ from collections import defaultdict
 import random
 import pickle
 
-from Genome import Genome
+from genetic_algorithm import Individual
+from match import Match
 
 class Generation:
     pop = []
     scores = []
 
     #create new generation
-    def __init__(self, pop=None, popSize=50, numGenes=10, maxGeneSize=9):
+    def __init__(self, pop=None, pop_size=50, n_genes=10, max_gene_size=9):
         if pop:
             self.pop = pop
         else:
-            self.pop = [Genome(numGenes=numGenes, maxGeneSize=maxGeneSize, players=2) for i in range(popSize)]
+            self.pop = [Individual(n_genes=n_genes, max_gene_size=max_gene_size, n_players=2) for i in range(pop_size)]
 
+    def play_one(self, board_size, min_for_move=2):
+        match = Match(self.pop[0],self.pop[1],board_size,min_for_move)
+        scores = match.play(verbose=True)
+        print("\nFinal Score: {}".format(scores))
+    
     #plays the entire generation against itself
-    def play(self, boardSize):
-        minForMove = 2
+    def play(self, board_size, min_for_move=2):
         self.scores = [0]*len(self.pop);
         for i in range(len(self.pop)):
             for j in range(len(self.pop)):
                 if i==j: continue
-                match = GoMatch2Player(Player(1,pop[i]),Player(2,pop[j]),boardSize,minForMove)
-                match.play()
-                winner = match.getWinner()
-                if winner == -1:
-                    print("Game {}, {} finished. Tie. Score: {}-{}".format(i,j,match.getWinningScore(),match.getWinningScore()))
-                elif winner == 0:
-                    print("Game {}, {} finished. Player 1 Won. Score: {}-{}".format(i,j,match.getWinningScore(),match.getWinningScore()-match.getScoreGap()))
-                    self.scores[i] += match.getScoreGap()
-                    self.scores[j] -= match.getScoreGap()
+                match = Match(self.pop[i],self.pop[j],board_size,min_for_move)
+                scores = match.play()
+                score_gap = scores[0][0]-scores[1][0]
+                if scores[0][0] == scores[1][0]:
+                    print("Game {}, {} finished. Tie. Score: {}-{}".format(i,j,scores[0][0],scores[1][0]))
+                elif scores[0][1] == 0:
+                    print("Game {}, {} finished. Player 1 Won. Score: {}-{}".format(i,j,scores[0][0],scores[1][0]))
+                    self.scores[i] += score_gap
+                    self.scores[j] -= score_gap
                 else:
-                    print("Game {}, {} finished. Player 2 Won. Score: {}-{}".format(i,j,match.getWinningScore()-match.getScoreGap(),match.getWinningScore()))
-                    self.scores[i] -= match.getScoreGap()
-                    self.scores[j] += match.getScoreGap()
+                    print("Game {}, {} finished. Player 2 Won. Score: {}-{}".format(i,j,scores[1][0],scores[0][0]))
+                    self.scores[i] -= score_gap
+                    self.scores[j] += score_gap
             print("Individual {} has finished its games.".format(i))
         for i in range(len(self.pop)):
             print("{}: {}".format(i, self.scores[i]))
     
-    '''i (eric) put this in mostly for my own amusment.
-     *it plays one game, printing the board each time a move is made,
-     *so the user can "watch" the game being played and see how good 
-     *these AIs are'''
-    def playOne(self, boardSize):
-        minForMove=2;
-        match = GoMatch2Player(Player(1,pop[0]),Player(2,pop[1]),boardSize,minForMove)
-        match.play()
-        match.printWinnerAndScore()
-
-    #this should call a method of the Genome object
-    def printGeneSizes(self):
-        for genome in self.pop:
-            geneLengths = defaultdict(int)
-            for gene in genome.genes:
-                geneLengths[gene.size] += 1
-            print(" ".join("{} ({})".format(k,v) for k,v in sorted(geneLengths.items())))
-    
-    def reproduce(self, popSize, numGenes):
+    def reproduce(self, pop_size):
         surv_idx, surv_score = zip(*[(k,v) for k,v in enumerate(self.scores) if v>0])
         print("There were {} survivors.".format(len(surv_idx)))
         if not surv_idx: return None
         
         ngen = []
-        for j in range(len(popSize)):
+        for j in range(len(pop_size)):
             #weight random parent selection by score
             parents = random.choices(surv_idx, weights=surv_score, k=2)
-            ngen.append(Genome([self.pop[p] for p in parents]))
+            ngen.append(Individual([self.pop[p] for p in parents]))
         
         return Generation(ngen)
     
@@ -79,16 +66,16 @@ class Generation:
             
             
             
-popSize = 50
-boardSize = 9
-path = "Data/"
+pop_size = 10
+board_size = 9
+path = "data\\"
             
 for i in range(5):
     if i==0:
-        g = Generation(popSize=popSize, numGenes=10, maxGeneSize=9)
+        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=9)
     else:
-        g = g.reproduce(i,popSize)
-    print(g)
-    g.play(boardSize)
+        g = g.reproduce(pop_size)
+    #g.play_one(board_size)
+    g.play(board_size)
     g.save("{}{}.pickle".format(path,i))
     print("Generation {} completed.".format(i+1))
