@@ -52,7 +52,7 @@ class Match:
             
             if verbose: print("\n\n\nTurn {}, Player {}".format(turn, cur_player))
             
-            loc = self._players[cur_player].get_move(self.board_array()+1, self._min_for_move)
+            loc = self._players[cur_player].get_move(self.board_array(), self._min_for_move)
             self._not_passed[cur_player] = 1*self.make_move(loc,cur_player)
             
             if verbose: print("\nMove {}:\n\n{}".format(loc, str(self)))

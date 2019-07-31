@@ -72,10 +72,11 @@ path = "data\\"
             
 for i in range(5):
     if i==0:
-        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=9)
+        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=3)
     else:
         g = g.reproduce(pop_size)
-    #g.play_one(board_size)
+    g.play_one(board_size)
+    break
     g.play(board_size)
     g.save("{}{}.pickle".format(path,i))
     print("Generation {} completed.".format(i+1))

@@ -3,6 +3,8 @@ import copy
 
 import numpy as np
 
+from match import Match
+
 class Gene:
     UNOCCUPIED_ONLY = -2
     ANYTHING = -1
@@ -59,46 +61,40 @@ class Individual: #renamed from Genome
         return "n_genes={}, max_gene_size={}, n_players={}\n{}".format(len(self.genes), self.max_gene_size, self.n_players, "\n".join(str(g) for g in self.genes))
         
     #board is a 2d numpy array of integers
-    #with unoccupied spaces = 0
-    #this player = 1
-    #other players = 2, ...
     def get_move(self, board, min_for_move):
         bsize = len(board)
         moves = np.zeros((bsize,bsize), dtype='int')
-        for gene_obj in self.genes:
+        for gene_obj in self.genes[:1]:
             gsize = gene_obj.size
             gene = np.reshape(gene_obj.gene, (gsize, gsize))
+            edges = np.reshape(gene_obj.edges, (2,2))
+            print('board:\n',board,'\ngene:\n',gene,'\nedges:\n',edges)
             for r in range(bsize-gsize):
                 for c in range(bsize-gsize):
+                    cur_edges = np.array([[r==0, c==bsize-gsize-1], [r==bsize-gsize-1, c==0]], dtype='float')-0.5
                     for rot in range(4):
                         if rot:
                             gene = np.rot90(gene)
+                            edges = np.rot90(edges)
                         
                         #check edge constraints
-                        if r!=0 and sum(gene[0,:] <= -8):
-                            continue
-                        if r!=bsize-gsize-1 and sum(gene[gsize-1,:] <= -8):
-                            continue
-                        if c!=0 and sum(gene[:,0] <= -8):
-                            continue
-                        if c!=bsize-gsize-1 and sum(gene[:,gsize-1] <= -8):
-                            continue
-                        
-                        #make a copy and convert edge constraints to player constraints
-                        gene_copy = np.copy(gene)
-                        gene_copy[gene<=-8] = -gene[gene<=-8]-10
-                        
+                        if np.any(cur_edges*edges < 0):
+                            continue #at least one failure
+                            
                         #check player constraints and add move candidates
                         board_segment = board[r:r+gsize,c:c+gsize]
-                        match = ((board_segment==0) & (gene_copy==Gene.UNOCCUPIED_ONLY)) | (gene_copy==Gene.ANYTHING) | ((gene_copy>Gene.ANYTHING) & (board_segment==gene_copy))
-                        if np.sum(match) == match.size:
-                            moves[r:r+gsize,c:c+gsize] += (board_segment==0) & (gene_copy==Gene.ANYTHING+1)
+                        match = ((gene==Gene.UNOCCUPIED_ONLY) & (board_segment==Match.UNOCCUPIED)) | (gene==Gene.ANYTHING) | ((gene>Gene.ANYTHING) & ((board_segment==Match.UNOCCUPIED) | (board_segment==gene)))
+                        
+                        #print('match for {},{},{}:\n'.format(r,c,rot),match)
+                        if np.all(match):
+                            moves[r:r+gsize,c:c+gsize] += (board_segment==Match.UNOCCUPIED) & (gene==Gene.ANYTHING+1)
                             
-        loc = np.empty((bsize, bsize), object)
-        loc[:] = [[(r,c) for c in range(bsize)] for r in range(bsize)]
-        loc = loc[(moves>=min_for_move) & (moves==moves.max())]
-        if len(loc):
-            return np.random.choice(loc)
+        #changed 7/29/19; old selected first space with max score
+        locs = np.arange(bsize*bsize)[((moves>=min_for_move) & (moves==moves.max())).flatten()]
+        print('locs:',locs)
+        if len(locs):
+            loc = np.random.choice(locs) 
+            return (loc//bsize,loc%bsize)
         else:
             return None
     
