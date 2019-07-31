@@ -31,13 +31,13 @@ class Generation:
                 scores = match.play()
                 score_gap = scores[0][0]-scores[1][0]
                 if scores[0][0] == scores[1][0]:
-                    print("Game {}, {} finished. Tie. Score: {}-{}".format(i,j,scores[0][0],scores[1][0]))
+                    print("Game {}, {} finished. Tie. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
                 elif scores[0][1] == 0:
-                    print("Game {}, {} finished. Player 1 Won. Score: {}-{}".format(i,j,scores[0][0],scores[1][0]))
+                    print("Game {}, {} finished. Player 1 Won. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
                     self.scores[i] += score_gap
                     self.scores[j] -= score_gap
                 else:
-                    print("Game {}, {} finished. Player 2 Won. Score: {}-{}".format(i,j,scores[1][0],scores[0][0]))
+                    print("Game {}, {} finished. Player 2 Won. Score: {} - {}".format(i,j,scores[1][0],scores[0][0]))
                     self.scores[i] -= score_gap
                     self.scores[j] += score_gap
             print("Individual {} has finished its games.".format(i))
@@ -50,7 +50,7 @@ class Generation:
         if not surv_idx: return None
         
         ngen = []
-        for j in range(len(pop_size)):
+        for j in range(pop_size):
             #weight random parent selection by score
             parents = random.choices(surv_idx, weights=surv_score, k=2)
             ngen.append(Individual([self.pop[p] for p in parents]))
@@ -72,11 +72,10 @@ path = "data\\"
             
 for i in range(5):
     if i==0:
-        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=3)
+        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=9)
     else:
         g = g.reproduce(pop_size)
-    g.play_one(board_size)
-    break
+    #g.play_one(board_size)
     g.play(board_size)
     g.save("{}{}.pickle".format(path,i))
     print("Generation {} completed.".format(i+1))

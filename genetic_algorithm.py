@@ -23,15 +23,21 @@ class Gene:
     #element value of ANYTHING denotes neutral (no piece/any piece)
     #element values greater than ANYTHING denote specific players, starting with current player
     def __init__(self, size, n_players, edge_chance):
-        self.size = size
         self.n_players = n_players
-        self.gene = [Gene.random_element(n_players) for i in range(size*size)]
-        self.edges = [random.choice(self.EDGE_CHOICES) if random.random() < edge_chance else self.EDGE_EITHER for i in range(4)]
+        self.gene = np.reshape([Gene.random_element(n_players) for i in range(size*size)], (size,size))
+        self.edges = np.reshape([random.choice(self.EDGE_CHOICES) if random.random() < edge_chance else self.EDGE_EITHER for i in range(4)], (2,2))
+        
+    @property
+    def size(self):
+        return len(self.gene)
     
     def mutate(self, max_percent, edge_chance):
-        for i in random.choices(range(len(self.gene)), k=random.randint(1,int(len(self.gene)*elements_max_percent))):
-            self.gene[i] = Gene.random_element(self.n_players)
-        self.edges = [random.choice(self.EDGE_CHOICES) if random.random() < edge_chance else e for e in self.edges]
+        n_elem = self.size*self.size
+        for i in random.choices(range(n_elem), k=random.randint(1,int(n_elem*max_percent))):
+            self.gene[np.unravel_index(i,self.gene.shape)] = Gene.random_element(self.n_players)
+        for i in range(4):
+            if random.random() < edge_chance:
+                self.edges[np.unravel_index(i,(2,2))] = random.choice(self.EDGE_CHOICES)
     
     def __str__(self):
         return "size={}, edges={}, elements={}".format(self.size,self.edges,self.gene)
@@ -61,14 +67,17 @@ class Individual: #renamed from Genome
         return "n_genes={}, max_gene_size={}, n_players={}\n{}".format(len(self.genes), self.max_gene_size, self.n_players, "\n".join(str(g) for g in self.genes))
         
     #board is a 2d numpy array of integers
-    def get_move(self, board, min_for_move):
+    def get_move(self, board, cur_player, min_for_move):
+        #adjust board for player (2 players only!)
+        if cur_player != 0:
+            board = board.copy()
+            board[board>=0] = 1-board[board>=0]
         bsize = len(board)
         moves = np.zeros((bsize,bsize), dtype='int')
-        for gene_obj in self.genes[:1]:
+        for gene_obj in self.genes:
             gsize = gene_obj.size
-            gene = np.reshape(gene_obj.gene, (gsize, gsize))
-            edges = np.reshape(gene_obj.edges, (2,2))
-            print('board:\n',board,'\ngene:\n',gene,'\nedges:\n',edges)
+            gene = gene_obj.gene
+            edges = gene_obj.edges
             for r in range(bsize-gsize):
                 for c in range(bsize-gsize):
                     cur_edges = np.array([[r==0, c==bsize-gsize-1], [r==bsize-gsize-1, c==0]], dtype='float')-0.5
@@ -91,7 +100,6 @@ class Individual: #renamed from Genome
                             
         #changed 7/29/19; old selected first space with max score
         locs = np.arange(bsize*bsize)[((moves>=min_for_move) & (moves==moves.max())).flatten()]
-        print('locs:',locs)
         if len(locs):
             loc = np.random.choice(locs) 
             return (loc//bsize,loc%bsize)
