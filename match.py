@@ -1,12 +1,37 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
+
+class Player(ABC):
+    def __init__(self, player_idx, *args, **kwargs):
+        self.player_idx = player_idx
+        
+    @abstractmethod
+    def get_move(self, board_array, cur_player):
+        return None
+        
+class HumanPlayer(Player):
+    @staticmethod
+    def parse_input(r,c):
+        try:
+            return (int(r), int(c))
+        except:
+            return None
+            
+    def get_move(self, board_array):
+        print("\n\n{}".format(Match.board_array_to_str(board_array)))
+        print("You are player {} ({}). Enter your move. Invalid input will PASS.".format(self.player_idx, Match.DISPLAY[self.player_idx]))
+        move = self.parse_input(input("Row (0,1,...): "), input("Col (0,1,...): "))
+        print("Interpreted move: {}".format("PASS" if move==None else move))
+        return move
 
 class Match:
     UNOCCUPIED = -1
+    DISPLAY = {-1:'.', 0:'X', 1:'O'}
     
-    def __init__(self, player1, player2, board_size, min_for_move):
+    def __init__(self, player1, player2, board_size):
         self._players = [player1, player2]
         self._board_size = board_size
-        self._min_for_move = min_for_move
         self._dragons = None
         self._board = None
         self._scores = None
@@ -22,10 +47,13 @@ class Match:
         
     def board_array(self):
         return np.array([[self._board[r,c]['player_idx'] for c in range(self._board_size)] for r in range(self._board_size)], dtype='int')
+        
+    @staticmethod
+    def board_array_to_str(board_array):
+        return '\n'.join(' '.join(Match.DISPLAY[c] for c in row) for row in board_array)
     
     def __str__(self):
-        display = {-1:'.', 0:'X', 1:'O'}
-        return '\n'.join(' '.join(display[c] for c in row) for row in self.board_array())
+        return self.board_array_to_str(self.board_array())
             
         '''scores = self.scores
         if not scores:
@@ -43,8 +71,8 @@ class Match:
         #board is a dictionary where keys are (row,column) and value is the current dragon in that space
         self._board = dict((space,self._dragons[0]) for space in self._dragons[0]['spaces'])
         
-        self._prisoners_lost = [0]*len(self._players)
-        self._not_passed = [1]*len(self._players)
+        self._prisoners_lost = [0]*n_players
+        self._not_passed = [1]*n_players
         
         for turn in range(4*self._board_size*self._board_size):
             #end if all players have passed
@@ -54,7 +82,7 @@ class Match:
             
             if verbose: print("\n\n\nTurn {}, Player {}".format(turn, cur_player))
             
-            loc = self._players[cur_player].get_move(self.board_array(), cur_player, self._min_for_move)
+            loc = self._players[cur_player].get_move(self.board_array())
             self._not_passed[cur_player] = 1*self.make_move(loc,cur_player)
             
             if verbose: print("\nMove {}:\n\n{}".format(loc, str(self)))
@@ -67,7 +95,6 @@ class Match:
             #NOTE: does not check for position that has occurred previously in the game
         
         return self.score()
-        
         
     def get_neighbors(self,loc):
         r,c = loc

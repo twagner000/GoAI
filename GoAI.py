@@ -1,81 +1,56 @@
-from collections import defaultdict
-import random
 import pickle
+from collections import OrderedDict
 
-from genetic_algorithm import Individual
-from match import Match
+from match import Match, HumanPlayer
+from genetic_algorithm import Generation, AIPlayer
 
-class Generation:
-    pop = []
-    scores = []
-
-    #create new generation
-    def __init__(self, pop=None, pop_size=50, n_genes=10, max_gene_size=9):
-        if pop:
-            self.pop = pop
+def run_ga(settings):
+    for i in range(settings['n_gen']):
+        if i==0:
+            g = Generation(pop_size=settings['pop_size'], n_genes=settings['n_genes'], max_gene_size=settings['max_gene_size'])
         else:
-            self.pop = [Individual(n_genes=n_genes, max_gene_size=max_gene_size, n_players=2) for i in range(pop_size)]
+            g = g.reproduce(settings['pop_size'])
+        #g.play_one(settings['board_size'])
+        g.play(settings['board_size'])
+        with open("{}{}.pickle".format(settings['path'],i), "wb") as f:
+            pickle.dump(g, f)
+        print("Generation {} completed.".format(i+1))
+        
+def brief_ga():
+    run_ga({
+        'n_gen': 2,
+        'pop_size': 5,
+        'board_size': 6,
+        'path': "data_quick\\",
+        'n_genes': 5,
+        'max_gene_size': 4,
+        })
 
-    def play_one(self, board_size, min_for_move=2):
-        match = Match(self.pop[0],self.pop[1],board_size,min_for_move)
-        scores = match.play(verbose=True)
-        print("\nFinal Score: {}".format(scores))
-    
-    #plays the entire generation against itself
-    def play(self, board_size, min_for_move=2):
-        self.scores = [0]*len(self.pop);
-        for i in range(len(self.pop)):
-            for j in range(len(self.pop)):
-                if i==j: continue
-                match = Match(self.pop[i],self.pop[j],board_size,min_for_move)
-                scores = match.play()
-                score_gap = scores[0][0]-scores[1][0]
-                if scores[0][0] == scores[1][0]:
-                    print("Game {}, {} finished. Tie. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
-                elif scores[0][1] == 0:
-                    print("Game {}, {} finished. Player 1 Won. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
-                    self.scores[i] += score_gap
-                    self.scores[j] -= score_gap
-                else:
-                    print("Game {}, {} finished. Player 2 Won. Score: {} - {}".format(i,j,scores[1][0],scores[0][0]))
-                    self.scores[i] -= score_gap
-                    self.scores[j] += score_gap
-            print("Individual {} has finished its games.".format(i))
-        for i in range(len(self.pop)):
-            print("{}: {}".format(i, self.scores[i]))
-    
-    def reproduce(self, pop_size):
-        surv_idx, surv_score = zip(*[(k,v) for k,v in enumerate(self.scores) if v>0])
-        print("There were {} survivors.".format(len(surv_idx)))
-        if not surv_idx: return None
+def full_ga():
+    run_ga({
+        'n_gen': 10,
+        'pop_size': 10,
+        'board_size': 9,
+        'path': "data\\",
+        'n_genes': 10,
+        'max_gene_size': 9,
+        })
         
-        ngen = []
-        for j in range(pop_size):
-            #weight random parent selection by score
-            parents = random.choices(surv_idx, weights=surv_score, k=2)
-            ngen.append(Individual([self.pop[p] for p in parents]))
-        
-        return Generation(ngen)
-    
-    def __str__(self):
-        return "\n".join("Individual {}\n{}".format(i,str(g)) for i,g in enumerate(self.pop))
-    
-    def save(self, fname):
-        with open(fname, "wb") as f:
-            pickle.dump(self, f)
-            
-            
-            
-pop_size = 10
-board_size = 9
-path = "data\\"
-            
-for i in range(5):
-    if i==0:
-        g = Generation(pop_size=pop_size, n_genes=10, max_gene_size=9)
-    else:
-        g = g.reproduce(pop_size)
-    #g.play_one(board_size)
-    g.play(board_size)
-    g.save("{}{}.pickle".format(path,i))
-    print("Generation {} completed.".format(i+1))
+def play_ga(board_size=9):
+    with open("data_20190730\\4.pickle","rb") as f:
+        g = pickle.load(f)
+    match = Match(HumanPlayer(0),AIPlayer(1,g.pop[0]),board_size)
+    scores = match.play()
+    print("\nFinal Score: {}".format(scores))
+
+def main():
+    menu_options = OrderedDict([("Q",{"prompt":"Quit"}),("B",{"prompt":"Run brief genetic algorithm", "fn":brief_ga}),("P",{"prompt":"Play against a genetic algorithm", "fn":play_ga})])
+    while True:
+        menu_response = input("\n".join("{}: {}".format(i,v["prompt"]) for i,v in menu_options.items())+"\n").upper()
+        if menu_response == 'Q':
+            break
+        menu_options.get(menu_response,{"fn":lambda:False})["fn"]()
+
+
+if __name__ == '__main__':
+    main()

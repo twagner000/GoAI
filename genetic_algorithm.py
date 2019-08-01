@@ -3,7 +3,7 @@ import copy
 
 import numpy as np
 
-from match import Match
+from match import Match, Player
 
 class Gene:
     UNOCCUPIED_ONLY = -2
@@ -44,6 +44,8 @@ class Gene:
 
 
 class Individual: #renamed from Genome
+    MIN_FOR_MOVE = 2
+    
     def __init__(self, parents=None, n_genes=None, max_gene_size=None, n_players=None, edge_chance=0.05, whole_gene_mutation_chance=0.02, partial_gene_mutation_chance=0.1, partial_gene_mutation_max_percent=0.3, partial_gene_mutation_edge_chance=0.01):
         if parents:
             #create new individual from parents
@@ -67,7 +69,7 @@ class Individual: #renamed from Genome
         return "n_genes={}, max_gene_size={}, n_players={}\n{}".format(len(self.genes), self.max_gene_size, self.n_players, "\n".join(str(g) for g in self.genes))
         
     #board is a 2d numpy array of integers
-    def get_move(self, board, cur_player, min_for_move):
+    def get_move(self, board, cur_player):
         #adjust board for player (2 players only!)
         if cur_player != 0:
             board = board.copy()
@@ -99,12 +101,73 @@ class Individual: #renamed from Genome
                             moves[r:r+gsize,c:c+gsize] += (board_segment==Match.UNOCCUPIED) & (gene==Gene.ANYTHING+1)
                             
         #changed 7/29/19; old selected first space with max score
-        locs = np.arange(bsize*bsize)[((moves>=min_for_move) & (moves==moves.max())).flatten()]
+        locs = np.arange(bsize*bsize)[((moves>=self.MIN_FOR_MOVE) & (moves==moves.max())).flatten()]
         if len(locs):
             loc = np.random.choice(locs) 
             return (loc//bsize,loc%bsize)
         else:
             return None
     
+class AIPlayer(Player):
+    def __init__(self, player_idx, individual, *args, **kwargs):
+        super().__init__(self, player_idx, *args, **kwargs)
+        self.individual = individual
+        
+    def get_move(self, board_array):
+        return self.individual.get_move(board_array, self.player_idx)
+
+class Generation:
+    pop = []
+    scores = []
+
+    #create new generation
+    def __init__(self, pop=None, pop_size=50, n_genes=10, max_gene_size=9):
+        if pop:
+            self.pop = pop
+        else:
+            self.pop = [Individual(n_genes=n_genes, max_gene_size=max_gene_size, n_players=2) for i in range(pop_size)]
+
+    def play_one(self, board_size):
+        match = Match(AIPlayer(0,self.pop[0]),AIPlayer(1,self.pop[1]),board_size)
+        scores = match.play(verbose=True)
+        print("\nFinal Score: {}".format(scores))
     
+    #plays the entire generation against itself
+    def play(self, board_size):
+        self.scores = [0]*len(self.pop);
+        for i in range(len(self.pop)):
+            for j in range(len(self.pop)):
+                if i==j: continue
+                match = Match(AIPlayer(0,self.pop[i]),AIPlayer(1,self.pop[j]),board_size)
+                scores = match.play()
+                score_gap = scores[0][0]-scores[1][0]
+                if scores[0][0] == scores[1][0]:
+                    print("Game {}, {} finished. Tie. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
+                elif scores[0][1] == 0:
+                    print("Game {}, {} finished. Player 1 Won. Score: {} - {}".format(i,j,scores[0][0],scores[1][0]))
+                    self.scores[i] += score_gap
+                    self.scores[j] -= score_gap
+                else:
+                    print("Game {}, {} finished. Player 2 Won. Score: {} - {}".format(i,j,scores[1][0],scores[0][0]))
+                    self.scores[i] -= score_gap
+                    self.scores[j] += score_gap
+            print("Individual {} has finished its games.".format(i))
+        for i in range(len(self.pop)):
+            print("{}: {}".format(i, self.scores[i]))
+    
+    def reproduce(self, pop_size):
+        surv_idx, surv_score = zip(*[(k,v) for k,v in enumerate(self.scores) if v>0])
+        print("There were {} survivors.".format(len(surv_idx)))
+        if not surv_idx: return None
+        
+        ngen = []
+        for j in range(pop_size):
+            #weight random parent selection by score
+            parents = random.choices(surv_idx, weights=surv_score, k=2)
+            ngen.append(Individual([self.pop[p] for p in parents]))
+        
+        return Generation(ngen)
+    
+    def __str__(self):
+        return "\n".join("Individual {}\n{}".format(i,str(g)) for i,g in enumerate(self.pop))
     
