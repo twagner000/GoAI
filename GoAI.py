@@ -6,6 +6,7 @@ from genetic_algorithm import Generation, AIPlayer
 
 def run_ga(settings):
     for i in range(settings['n_gen']):
+        print("Beginning generation {}...".format(i))
         if i==0:
             g = Generation(pop_size=settings['pop_size'], n_genes=settings['n_genes'], max_gene_size=settings['max_gene_size'])
         else:
@@ -14,7 +15,7 @@ def run_ga(settings):
         g.play(settings['board_size'])
         with open("{}{}.pickle".format(settings['path'],i), "wb") as f:
             pickle.dump(g, f)
-        print("Generation {} completed.".format(i+1))
+        print("Generation {} completed.".format(i))
         
 def brief_ga():
     run_ga({
@@ -44,7 +45,13 @@ def play_ga(board_size=9):
     print("\nFinal Score: {}".format(scores))
 
 def main():
-    menu_options = OrderedDict([("Q",{"prompt":"Quit"}),("B",{"prompt":"Run brief genetic algorithm", "fn":brief_ga}),("P",{"prompt":"Play against a genetic algorithm", "fn":play_ga})])
+    menu_options = OrderedDict([
+        ("Q",{"prompt":"Quit"}),
+        ("B",{"prompt":"Run brief genetic algorithm", "fn":brief_ga}),
+        ("F",{"prompt":"Run full genetic algorithm (takes a long time!)", "fn":full_ga}),
+        ("P",{"prompt":"Play against a genetic algorithm", "fn":play_ga}),
+        ])
+    
     while True:
         menu_response = input("\n".join("{}: {}".format(i,v["prompt"]) for i,v in menu_options.items())+"\n").upper()
         if menu_response == 'Q':
